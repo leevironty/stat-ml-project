@@ -204,6 +204,7 @@ def equal_demographic(curves: list[Curve]) -> np.ndarray:
 
     # generate output from ac
     out_ths = np.zeros((num_class, 2))
+    single_ths = np.zeros(num_class)
     out_tp = np.zeros(num_class)
     out_fp = np.zeros(num_class)
 
@@ -211,12 +212,15 @@ def equal_demographic(curves: list[Curve]) -> np.ndarray:
         i = np.searchsorted(curve.acs, ac)
         if i == 0:
             out_ths[c, :] = curve.ths[0]
+            single_ths[c] = curve.ths[0]
         else:
+            r = (ac - curve.acs[i - 1]) / (curve.acs[i] - curve.acs[i-1])
+            single_ths[c] = (1 - r) * curve.ths[i-1] + r * curve.ths[i]
             out_ths[c] = curve.ths[i-1], curve.ths[i]
             out_tp[c], out_fp[c] = lookup_to_tp_fp(ac, curve.acs, curve.tps, curve.fps)
     print(ac)
 
-    return out_ths, out_tp, out_fp, ac
+    return out_ths, out_tp, out_fp, ac, single_ths
 
 
 def preprocess(fname: str, col_names: list[str], protected: str):
@@ -267,6 +271,7 @@ def equal_opportunity(curves: list[Curve]) -> np.ndarray:
 
     # generate output from ac
     out_ths = np.zeros((num_class, 2))
+    single_ths = np.zeros(num_class)
     out_tp = np.zeros(num_class)
     out_fp = np.zeros(num_class)
 
@@ -274,12 +279,15 @@ def equal_opportunity(curves: list[Curve]) -> np.ndarray:
         i = np.searchsorted(curve.tps, tp)
         if i == 0:
             out_ths[c, :] = curve.ths[0]
+            single_ths[c] = curve.ths[0]
         else:
+            r = (tp - curve.tps[i - 1]) / (curve.tps[i] - curve.tps[i-1])
+            single_ths[c] = (1 - r) * curve.ths[i-1] + r * curve.ths[i]
             out_ths[c] = curve.ths[i-1], curve.ths[i]
             out_tp[c], out_fp[c] = lookup_to_tp_fp(tp, curve.tps, curve.tps, curve.fps)
     print(tp)
 
-    return out_ths, out_tp, out_fp, tp
+    return out_ths, out_tp, out_fp, tp, single_ths
 
 
 def equal_odds(curves: list[Curve]):
@@ -304,6 +312,26 @@ def equal_odds(curves: list[Curve]):
     return tp, fp
     
 
+def intersection_threshold(curve: Curve, tp: float, fp: float) -> float:
+    def line(x: float) -> float:
+        return (1 - tp) / (1 - fp) * (x - 1) + 1
+    
+    ys = np.array([line(p) for p in curve.fps])
+    i = np.argmax(ys - curve.tps < 0)
+
+
+    mu = (1 - tp) / (1 - fp)
+    # x1 = curve.fps[i-1]
+    x2 = curve.fps[i]
+    y1 = curve.tps[i-1]
+    y2 = curve.tps[i]
+
+    l = (1 - y2 + mu * (x2 - 1)) / (y1 - y2 + mu * (x2 - x2))
+    # xi = l * x1 + (1 - l) * x2
+    # yi = l * y1 + (1 - l) * y2
+    th1 = curve.ths[i-1]
+    th2 = curve.ths[i]
+    return th1 * l + (1 - l) * th2
 
 
 def main():
