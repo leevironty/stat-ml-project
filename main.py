@@ -226,7 +226,7 @@ def equal_demographic(curves: list[Curve]) -> np.ndarray:
 def preprocess(fname: str, col_names: list[str], protected: str):
     drops = ['label', 'fnlwgt', 'native-country', 'marital-status'] + [protected]
     df = pd.read_csv(fname, header=None, names=col_names, skipinitialspace=True)
-    y = (df['label'] == '>50K').values * 1
+    y = ((df['label'] == '>50K') | (df['label'] == '>50K.')).values * 1
     protected_labels, protected_map = pd.factorize(df[protected])
 
     x = one_hot(df.drop(columns=drops))
