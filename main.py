@@ -21,13 +21,14 @@ class Curve:
         self.acs = self.tps * self.pi + self.fps * (1 - self.pi)
 
 
-def get_curves(probs: np.ndarray, class_labels: np.ndarray, label_map, y: np.ndarray) -> list[Curve]:
+def get_curves(probs: np.ndarray, class_labels: np.ndarray, label_map, y: np.ndarray, weights: np.ndarray) -> list[Curve]:
     curves = []
     num_class = class_labels.max() + 1
     for c in range(num_class):
         probs_c = probs[class_labels == c]
         y_c = y[class_labels == c]
-        fp, tp, tr = metrics.roc_curve(y_c, probs_c)
+        weights_c = weights[class_labels == c]
+        fp, tp, tr = metrics.roc_curve(y_c, probs_c, sample_weight=weights_c)
         tr = tr.clip(0, 1)  # no max + 1 trickery
         tp, fp, th = convexify(tp, fp, tr)
         curves.append(Curve(
@@ -229,8 +230,9 @@ def preprocess(fname: str, col_names: list[str], protected: str):
     y = ((df['label'] == '>50K') | (df['label'] == '>50K.')).values * 1
     protected_labels, protected_map = pd.factorize(df[protected])
 
+    weights = df['fnlwgt'].values
     x = one_hot(df.drop(columns=drops))
-    return x, y, protected_labels, protected_map
+    return x, y, protected_labels, protected_map, weights
 
     
 
